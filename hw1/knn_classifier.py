@@ -30,13 +30,14 @@ class KNNClassifier(object):
         #     the (N,D) matrix x_train and all the labels into the (N,) vector
         #     y_train.
         #  2. Save the number of classes as n_classes.
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
-
-        self.x_train = x_train
-        self.y_train = y_train
-        self.n_classes = n_classes
+        '''for i , (x_train,y_train) in enumerate(dl_train):
+            print(i, x_train.shape, len(y_train))
+        '''
+        self.x_train = torch.cat([x for x, _ in dl_train])
+        self.y_train = torch.cat([l for _, l in dl_train])
+        #from collections import Counter
+        #print(Counter(self.y_train.tolist()))
+        self.n_classes = len(torch.unique(self.y_train))
         return self
 
     def predict(self, x_test: Tensor):
@@ -62,10 +63,13 @@ class KNNClassifier(object):
             #  - Find indices of k-nearest neighbors of test sample i
             #  - Set y_pred[i] to the most common class among them
             #  - Don't use an explicit loop.
-            # ====== YOUR CODE: ======
-            raise NotImplementedError()
-            # ========================
-
+            indices = torch.topk(dist_matrix[:,i]*-1, self.k).indices
+            knn_labels = [self.y_train[i].item() for i in indices]
+            y_pred[i] = max(knn_labels, key=knn_labels.count)
+            #print(indices, knn_labels, y_pred[i])
+        #print(y_pred)
+        #from collections import Counter
+        #print(Counter(y_pred.tolist()))
         return y_pred
 
 
@@ -88,13 +92,10 @@ def l2_dist(x1: Tensor, x2: Tensor):
     #    Hint: Open the expression (a-b)^2. Use broadcasting semantics to
     #    combine the three terms efficiently.
     #  - Don't use torch.cdist
-
-    dists = None
-    # ====== YOUR CODE: ======
-    raise NotImplementedError()
-    # ========================
-
-    return dists
+    x1_square = torch.diagonal(torch.matmul(x1, x1.T))
+    x2_square = torch.diagonal(torch.matmul(x2, x2.T))
+    ab = torch.matmul(x1, x2.T) * -2
+    return torch.sqrt((ab.T + x1_square).T + x2_square)
 
 
 def accuracy(y: Tensor, y_pred: Tensor):
@@ -109,10 +110,7 @@ def accuracy(y: Tensor, y_pred: Tensor):
     assert y.dim() == 1
 
     # TODO: Calculate prediction accuracy. Don't use an explicit loop.
-    accuracy = None
-    # ====== YOUR CODE: ======
-    raise NotImplementedError()
-    # ========================
+    accuracy = torch.sum(y == y_pred).item() / y.shape[0]
 
     return accuracy
 

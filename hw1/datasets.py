@@ -6,7 +6,7 @@ from torch.utils.data import Dataset, IterableDataset
 
 
 def random_labelled_image(
-    shape: Tuple[int, ...], num_classes: int, low=0, high=255, dtype=torch.int,
+        shape: Tuple[int, ...], num_classes: int, low=0, high=255, dtype=torch.int,
 ) -> Tuple[Tensor, int]:
     """
     Generates a random image and a random class label for it.
@@ -17,11 +17,9 @@ def random_labelled_image(
     :param dtype: Data type of the returned image tensor.
     :return: A tuple containing the generated image tensor and it's label.
     """
-    # TODO:
-    #  Implement according to the docstring description.
-    # ====== YOUR CODE: ======
-    raise NotImplementedError()
-    # ========================
+    X = torch.distributions.uniform.Uniform(low, high)
+    image = X.rsample(shape)
+    label = torch.randint(0, num_classes - 1, (1,)).item()
     return image, label
 
 
@@ -36,17 +34,12 @@ def torch_temporary_seed(seed: int):
     #  Implement this context manager as described.
     #  See torch.random.get/set_rng_state(), torch.random.manual_seed().
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    org_seed = torch.random.get_rng_state()
     # ========================
     try:
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
-        yield
+        yield torch.random.manual_seed(seed)
     finally:
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        torch.random.set_rng_state(org_seed)
 
 
 class RandomImageDataset(Dataset):
@@ -74,24 +67,22 @@ class RandomImageDataset(Dataset):
         :return: A tuple (sample, label) containing the image and its class label.
         Raises a ValueError if index is out of range.
         """
-
+        if index >= self.num_samples:
+            raise ValueError
+        with torch_temporary_seed(index):
+            return random_labelled_image(self.image_dim, self.num_classes)
         # TODO:
         #  Create a random image tensor and return it.
         #  Make sure to always return the same image for the
         #  same index (make it deterministic per index), but don't mess-up
         #  the random state outside this method.
         #  Raise a ValueError if the index is out of range.
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
 
     def __len__(self):
         """
         :return: Number of samples in this dataset.
         """
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        return self.num_samples
 
 
 class ImageStreamDataset(IterableDataset):
@@ -110,7 +101,16 @@ class ImageStreamDataset(IterableDataset):
         self.num_classes = num_classes
         self.image_dim = (C, W, H)
 
-    def __iter__(self) -> Iterator[Tuple[Tensor, int]]:
+    def __iter__(self):
+        self.i = -1
+        return self
+
+    def __next__(self):
+        self.i += 1
+        with torch_temporary_seed(self.i):
+            return random_labelled_image(self.image_dim, self.num_classes)
+
+    '''def __iter__(self) -> Iterator[Tuple[Tensor, int]]:
         """
         :return: An iterator providing an infinite stream of random labelled images.
         """
@@ -118,10 +118,9 @@ class ImageStreamDataset(IterableDataset):
         # TODO:
         #  Yield tuples to produce an iterator over random images and labels.
         #  The iterator should produce an infinite stream of data.
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
-
+        self.i += 1
+        with torch_temporary_seed(self.i):
+            yield random_labelled_image(self.image_dim, self.num_classes)'''
 
 class SubsetDataset(Dataset):
     """
@@ -146,11 +145,9 @@ class SubsetDataset(Dataset):
         # TODO:
         #  Return the item at index + offset from the source dataset.
         #  Raise an IndexError if index is out of bounds.
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        if index >= self.subset_len or index<0:
+            raise IndexError
+        return self.source_dataset[self.offset+index]
 
     def __len__(self):
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        return self.subset_len

@@ -18,22 +18,58 @@ class FirstLastSampler(Sampler):
         """
         super().__init__(data_source)
         self.data_source = data_source
+        self.first = True
 
-    def __iter__(self) -> Iterator[int]:
+    def __iter__(self):
+        self.i = 0
+        return self
+
+    def __next__(self):  # -> Iterator[int]:
         # TODO:
         # Implement the logic required for this sampler.
         # If the length of the data source is N, you should return indices in a
         # first-last ordering, i.e. [0, N-1, 1, N-2, ...].
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        if self.first:
+            if self.i >= len(self.data_source) / 2: #even check
+                raise StopIteration
+            self.first = False
+            return self.i
+        else:
+            if self.i+1 > len(self.data_source) / 2: #odd check
+                raise StopIteration
+            self.first = True
+            self.i += 1
+            return len(self.data_source) - self.i
+
+    def __len__(self):
+        return len(self.data_source)
+
+
+class CutSampler(Sampler):
+
+    def __init__(self, data_source: Sized, begin, end):
+        super().__init__(data_source)
+        self.data_source = data_source
+        self.begin = begin
+        self.end = end
+        self.indices = list(self)
+
+    def __iter__(self):
+        self.i = self.begin - 1
+        return self
+
+    def __next__(self):  # -> Iterator[int]:
+        self.i += 1
+        if self.i > self.end:
+            raise StopIteration
+        return self.i
 
     def __len__(self):
         return len(self.data_source)
 
 
 def create_train_validation_loaders(
-    dataset: Dataset, validation_ratio, batch_size=100, num_workers=2
+        dataset: Dataset, validation_ratio, batch_size=100, num_workers=2
 ):
     """
     Splits a dataset into a train and validation set, returning a
@@ -57,8 +93,15 @@ def create_train_validation_loaders(
     #     from the dataset.
     #  Hint: you can specify a Sampler class for the `DataLoader` instance
     #  you create.
-    # ====== YOUR CODE: ======
-    raise NotImplementedError()
-    # ========================
 
+    dl_train = torch.utils.data.DataLoader(dataset,
+                                           batch_size=batch_size,
+                                           num_workers=num_workers,
+                                           sampler=CutSampler(dataset, validation_ratio * len(dataset), len(dataset)-1),
+                                           )
+    dl_valid = torch.utils.data.DataLoader(dataset,
+                                           batch_size=batch_size,
+                                           num_workers=num_workers,
+                                           sampler=CutSampler(dataset, 0, validation_ratio * len(dataset)-1),
+                                           )
     return dl_train, dl_valid
