@@ -35,8 +35,8 @@ class KNNClassifier(object):
         '''
         self.x_train = torch.cat([x for x, _ in dl_train])
         self.y_train = torch.cat([l for _, l in dl_train])
-        #from collections import Counter
-        #print(Counter(self.y_train.tolist()))
+        # from collections import Counter
+        # print(Counter(self.y_train.tolist()))
         self.n_classes = len(torch.unique(self.y_train))
         return self
 
@@ -63,13 +63,13 @@ class KNNClassifier(object):
             #  - Find indices of k-nearest neighbors of test sample i
             #  - Set y_pred[i] to the most common class among them
             #  - Don't use an explicit loop.
-            indices = torch.topk(dist_matrix[:,i]*-1, self.k).indices
+            indices = torch.topk(dist_matrix[:, i] * -1, self.k).indices
             knn_labels = [self.y_train[i].item() for i in indices]
             y_pred[i] = max(knn_labels, key=knn_labels.count)
-            #print(indices, knn_labels, y_pred[i])
-        #print(y_pred)
-        #from collections import Counter
-        #print(Counter(y_pred.tolist()))
+            # print(indices, knn_labels, y_pred[i])
+        # print(y_pred)
+        # from collections import Counter
+        # print(Counter(y_pred.tolist()))
         return y_pred
 
 
@@ -131,17 +131,21 @@ def find_best_k(ds_train: Dataset, k_choices, num_folds):
 
     for i, k in enumerate(k_choices):
         model = KNNClassifier(k)
-
         # TODO:
         #  Train model num_folds times with different train/val data.
         #  Don't use any third-party libraries.
         #  You can use your train/validation splitter from part 1 (note that
         #  then it won't be exactly k-fold CV since it will be a
         #  random split each iteration), or implement something else.
-
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        accuracies.append([])
+        for f in range(num_folds):
+            dl_train, dl_valid = dataloaders.create_train_validation_loaders(ds_train, 1 / num_folds)
+            x_valid = torch.cat([x for x, _ in dl_valid])
+            y_valid = torch.cat([l for _, l in dl_valid])
+            knn_classifier = KNNClassifier(k=k)
+            knn_classifier.train(dl_train)
+            y_pred = knn_classifier.predict(x_valid)
+            accuracies[i].append(accuracy(y_valid, y_pred))
 
     best_k_idx = np.argmax([np.mean(acc) for acc in accuracies])
     best_k = k_choices[best_k_idx]

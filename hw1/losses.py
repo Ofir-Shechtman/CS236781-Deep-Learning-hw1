@@ -27,6 +27,9 @@ class SVMHingeLoss(ClassifierLoss):
     def __init__(self, delta=1.0):
         self.delta = delta
         self.grad_ctx = {}
+        self.M = None
+        self.y = None
+        self.x_scores = None
 
     def loss(self, x, y, x_scores, y_predicted):
         """
@@ -49,18 +52,22 @@ class SVMHingeLoss(ClassifierLoss):
         #    implementation (zero explicit loops).
         #    Hint: Create a matrix M where M[i,j] is the margin-loss
         #    for sample i and class j (i.e. s_j - s_{y_i} + delta).
-
-        loss = None
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        self.y = y
+        self.x_scores = x_scores
+        N = self.x_scores.size(0)
+        N_range = torch.arange(N)
+        y_indices = self.y.to(torch.long)
+        s_yi = x_scores[N_range, self.y_indices]
+        self.M = x_scores - s_yi[:, None] + self.delta
+        self.M[N_range, y_indices] = 0
+        self.M = torch.max(self.M, torch.tensor([0.]))
 
         # TODO: Save what you need for gradient calculation in self.grad_ctx
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        # raise NotImplementedError()
         # ========================
 
-        return loss
+        return sum(sum(self.M)) / N
 
     def grad(self):
         """
@@ -72,10 +79,8 @@ class SVMHingeLoss(ClassifierLoss):
         #  Implement SVM loss gradient calculation
         #  Same notes as above. Hint: Use the matrix M from above, based on
         #  it create a matrix G such that X^T * G is the gradient.
-
-        grad = None
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
-
-        return grad
+        C = self.x_scores.size(1)
+        C_range = torch.arange(C)
+        self.M[self.M > 0] = 1
+        self.M[self.y_indices, C_range] = sum(self.M)
+        return torch.matmul(self.x_scores.T, self.M)

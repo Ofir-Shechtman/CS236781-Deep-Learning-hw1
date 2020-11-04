@@ -67,6 +67,25 @@ class CutSampler(Sampler):
     def __len__(self):
         return len(self.data_source)
 
+class ByIndicesSampler(Sampler):
+
+    def __init__(self, data_source: Sized, indices):
+        super().__init__(data_source)
+        self.data_source = data_source
+        self.indices = indices
+
+    def __iter__(self):
+        self.i = -1
+        return self
+
+    def __next__(self):  # -> Iterator[int]:
+        self.i += 1
+        if self.i >= len(self.indices):
+            raise StopIteration
+        return self.indices[self.i]
+
+    def __len__(self):
+        return len(self.indices)
 
 def create_train_validation_loaders(
         dataset: Dataset, validation_ratio, batch_size=100, num_workers=2
@@ -93,15 +112,15 @@ def create_train_validation_loaders(
     #     from the dataset.
     #  Hint: you can specify a Sampler class for the `DataLoader` instance
     #  you create.
-
+    train_indices, valid_indices = torch.utils.data.random_split(range(len(dataset)), [round((1-validation_ratio) * len(dataset)), round(validation_ratio * len(dataset))])
     dl_train = torch.utils.data.DataLoader(dataset,
                                            batch_size=batch_size,
                                            num_workers=num_workers,
-                                           sampler=CutSampler(dataset, validation_ratio * len(dataset), len(dataset)-1),
+                                           sampler=ByIndicesSampler(dataset, train_indices),
                                            )
     dl_valid = torch.utils.data.DataLoader(dataset,
                                            batch_size=batch_size,
                                            num_workers=num_workers,
-                                           sampler=CutSampler(dataset, 0, validation_ratio * len(dataset)-1),
+                                           sampler=ByIndicesSampler(dataset, valid_indices),
                                            )
     return dl_train, dl_valid
