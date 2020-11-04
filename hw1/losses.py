@@ -60,9 +60,8 @@ class SVMHingeLoss(ClassifierLoss):
         N_range = torch.arange(N)
         y_indices = self.y.to(torch.long)
         s_yi = x_scores[N_range, y_indices]
-        self.M = x_scores - s_yi[:, None] + self.delta
+        self.M = torch.clamp(x_scores - s_yi[:, None] + self.delta, min=0)
         self.M[N_range, y_indices] = 0
-        self.M = torch.max(self.M, torch.tensor([0.]))
 
         # TODO: Save what you need for gradient calculation in self.grad_ctx
         # ====== YOUR CODE: ======
@@ -75,7 +74,6 @@ class SVMHingeLoss(ClassifierLoss):
         """
         Calculates the gradient of the Hinge-loss w.r.t. parameters.
         :return: The gradient, of shape (D, C).
-
         """
         # TODO:
         #  Implement SVM loss gradient calculation
@@ -85,8 +83,8 @@ class SVMHingeLoss(ClassifierLoss):
 
         N = self.x_scores.size(0)
         N_range = torch.arange(N)
-        self.M[self.M > 0] = 1
-        y_sums = y_indices.clone()
-        y_sums.apply_(lambda x: {k: v.item() for k, v in enumerate(sum(self.M))}.get(x))
-        self.M[N_range, y_indices] = y_sums.to(torch.float)
-        return torch.matmul(self.x.T, self.M)
+        G = self.M
+        G[G > 0] = 1
+        row_sum = G.sum(axis=1)
+        G[N_range, y_indices] = -row_sum.T
+        return torch.matmul(self.x.T, G)*1/N
