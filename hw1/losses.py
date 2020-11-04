@@ -28,6 +28,7 @@ class SVMHingeLoss(ClassifierLoss):
         self.delta = delta
         self.grad_ctx = {}
         self.M = None
+        self.x = None
         self.y = None
         self.x_scores = None
 
@@ -52,12 +53,13 @@ class SVMHingeLoss(ClassifierLoss):
         #    implementation (zero explicit loops).
         #    Hint: Create a matrix M where M[i,j] is the margin-loss
         #    for sample i and class j (i.e. s_j - s_{y_i} + delta).
+        self.x = x
         self.y = y
         self.x_scores = x_scores
         N = self.x_scores.size(0)
         N_range = torch.arange(N)
         y_indices = self.y.to(torch.long)
-        s_yi = x_scores[N_range, self.y_indices]
+        s_yi = x_scores[N_range, y_indices]
         self.M = x_scores - s_yi[:, None] + self.delta
         self.M[N_range, y_indices] = 0
         self.M = torch.max(self.M, torch.tensor([0.]))
@@ -79,8 +81,12 @@ class SVMHingeLoss(ClassifierLoss):
         #  Implement SVM loss gradient calculation
         #  Same notes as above. Hint: Use the matrix M from above, based on
         #  it create a matrix G such that X^T * G is the gradient.
-        C = self.x_scores.size(1)
-        C_range = torch.arange(C)
+        y_indices = self.y.to(torch.long)
+
+        N = self.x_scores.size(0)
+        N_range = torch.arange(N)
         self.M[self.M > 0] = 1
-        self.M[self.y_indices, C_range] = sum(self.M)
-        return torch.matmul(self.x_scores.T, self.M)
+        y_sums = y_indices.clone()
+        y_sums.apply_(lambda x: {k: v.item() for k, v in enumerate(sum(self.M))}.get(x))
+        self.M[N_range, y_indices] = y_sums.to(torch.float)
+        return torch.matmul(self.x.T, self.M)
