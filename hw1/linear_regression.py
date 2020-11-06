@@ -16,6 +16,7 @@ class LinearRegressor(BaseEstimator, RegressorMixin):
 
     def __init__(self, reg_lambda=0.1):
         self.reg_lambda = reg_lambda
+        self.weights_ = None
 
     def predict(self, X):
         """
@@ -29,11 +30,7 @@ class LinearRegressor(BaseEstimator, RegressorMixin):
         check_is_fitted(self, "weights_")
 
         # TODO: Calculate the model prediction, y_pred
-
-        y_pred = None
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        y_pred = X.dot(self.weights_.T)
 
         return y_pred
 
@@ -48,12 +45,10 @@ class LinearRegressor(BaseEstimator, RegressorMixin):
         # TODO:
         #  Calculate the optimal weights using the closed-form solution you derived.
         #  Use only numpy functions. Don't forget regularization!
-
-        w_opt = None
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
-
+        N, n_features_ = X.shape
+        I_f = np.eye(n_features_)
+        I_f[(0, 0)] = 0
+        w_opt = np.matmul(np.linalg.inv(np.matmul(X.T, X) + self.reg_lambda * N * I_f), X.T.dot(y))
         self.weights_ = w_opt
         return self
 
@@ -62,7 +57,7 @@ class LinearRegressor(BaseEstimator, RegressorMixin):
 
 
 def fit_predict_dataframe(
-    model, df: DataFrame, target_name: str, feature_names: List[str] = None,
+        model, df: DataFrame, target_name: str, feature_names: List[str] = None,
 ):
     """
     Calculates model predictions on a dataframe, optionally with only a subset of
@@ -76,10 +71,9 @@ def fit_predict_dataframe(
     :return: A vector of predictions, y_pred.
     """
     # TODO: Implement according to the docstring description.
-    # ====== YOUR CODE: ======
-    raise NotImplementedError()
-    # ========================
-    return y_pred
+    X = df.drop(target_name, axis=1) if feature_names is None else df[list(feature_names)]
+    y = df[target_name]
+    return model.fit_predict(X, y)
 
 
 class BiasTrickTransformer(BaseEstimator, TransformerMixin):
@@ -98,10 +92,7 @@ class BiasTrickTransformer(BaseEstimator, TransformerMixin):
         #  Add bias term to X as the first feature.
         #  See np.hstack().
 
-        xb = None
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        xb = np.hstack((np.ones((np.shape(X)[0], 1)), X))
 
         return xb
 
@@ -162,11 +153,9 @@ def top_correlated_features(df: DataFrame, target_feature, n=5):
 
     # TODO: Calculate correlations with target and sort features by it
 
-    # ====== YOUR CODE: ======
-    raise NotImplementedError()
-    # ========================
-
-    return top_n_features, top_n_corr
+    corr_list = [(feature, df[target_feature].corr(df[feature])) for feature in df.columns]
+    corr_list.sort(key=lambda pair: -abs(pair[1]))
+    return zip(*corr_list[1:6])
 
 
 def mse_score(y: np.ndarray, y_pred: np.ndarray):
@@ -178,9 +167,7 @@ def mse_score(y: np.ndarray, y_pred: np.ndarray):
     """
 
     # TODO: Implement MSE using numpy.
-    # ====== YOUR CODE: ======
-    raise NotImplementedError()
-    # ========================
+    mse = np.sum((y - y_pred) ** 2).item() / (y.shape[0])
     return mse
 
 
@@ -191,16 +178,13 @@ def r2_score(y: np.ndarray, y_pred: np.ndarray):
     :param y_pred: Ground truth labels, shape (N,)
     :return: R^2 score.
     """
-
-    # TODO: Implement R^2 using numpy.
-    # ====== YOUR CODE: ======
-    raise NotImplementedError()
-    # ========================
-    return r2
+    a = np.sum((y - y_pred) ** 2)
+    b = np.sum((y - np.mean(y)) ** 2)
+    return 1 - a / b
 
 
 def cv_best_hyperparams(
-    model: BaseEstimator, X, y, k_folds, degree_range, lambda_range
+        model: BaseEstimator, X, y, k_folds, degree_range, lambda_range
 ):
     """
     Cross-validate to find best hyperparameters with k-fold CV.
