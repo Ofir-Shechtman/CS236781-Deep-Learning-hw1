@@ -33,8 +33,9 @@ class KNNClassifier(object):
         '''for i , (x_train,y_train) in enumerate(dl_train):
             print(i, x_train.shape, len(y_train))
         '''
-        self.x_train = torch.cat([x for x, _ in dl_train])
-        self.y_train = torch.cat([l for _, l in dl_train])
+        # self.x_train = torch.cat([x for x, _ in dl_train])
+        # self.y_train = torch.cat([l for _, l in dl_train])
+        self.x_train, self.y_train = dataloader_utils.flatten(dl_train)
         # from collections import Counter
         # print(Counter(self.y_train.tolist()))
         self.n_classes = len(torch.unique(self.y_train))

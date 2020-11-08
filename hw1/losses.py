@@ -27,15 +27,12 @@ class SVMHingeLoss(ClassifierLoss):
     def __init__(self, delta=1.0):
         self.delta = delta
         self.grad_ctx = {}
-        self.M = None
-        self.x = None
-        self.y = None
-        self.x_scores = None
 
-    def loss(self, x, y, x_scores, y_predicted):
+    def loss(self, x, y, x_scores, y_predicted, update_grad_cyx=True):
         """
         Calculates the Hinge-loss for a batch of samples.
 
+        :param update_grad_cyx:
         :param x: Batch of samples in a Tensor of shape (N, D).
         :param y: Ground-truth labels for these samples: (N,)
         :param x_scores: The predicted class score for each sample: (N, C).
@@ -53,22 +50,19 @@ class SVMHingeLoss(ClassifierLoss):
         #    implementation (zero explicit loops).
         #    Hint: Create a matrix M where M[i,j] is the margin-loss
         #    for sample i and class j (i.e. s_j - s_{y_i} + delta).
-        self.x = x
-        self.y = y
-        self.x_scores = x_scores
-        N = self.x_scores.size(0)
+
+        N = x_scores.size(0)
         N_range = torch.arange(N)
-        y_indices = self.y.to(torch.long)
+        y_indices = y.to(torch.long)
         s_yi = x_scores[N_range, y_indices]
-        self.M = torch.clamp(x_scores - s_yi[:, None] + self.delta, min=0)
-        self.M[N_range, y_indices] = 0
+        M = torch.clamp(x_scores - s_yi[:, None] + self.delta, min=0)
+        M[N_range, y_indices] = 0
 
         # TODO: Save what you need for gradient calculation in self.grad_ctx
-        # ====== YOUR CODE: ======
-        # raise NotImplementedError()
-        # ========================
+        if update_grad_cyx:
+            self.grad_ctx = {'y_indices': y_indices, 'x': x, 'N': N, 'M': M}
 
-        return sum(sum(self.M)) / N
+        return sum(sum(M)) / N
 
     def grad(self):
         """
@@ -79,12 +73,13 @@ class SVMHingeLoss(ClassifierLoss):
         #  Implement SVM loss gradient calculation
         #  Same notes as above. Hint: Use the matrix M from above, based on
         #  it create a matrix G such that X^T * G is the gradient.
-        y_indices = self.y.to(torch.long)
+        y_indices = self.grad_ctx.get('y_indices')
+        N = self.grad_ctx.get('N')
+        G = self.grad_ctx.get('M')
+        x = self.grad_ctx.get('x')
 
-        N = self.x_scores.size(0)
         N_range = torch.arange(N)
-        G = self.M
         G[G > 0] = 1
         row_sum = G.sum(axis=1)
         G[N_range, y_indices] = -row_sum.T
-        return torch.matmul(self.x.T, G)*1/N
+        return torch.matmul(x.T, G) * 1 / N
