@@ -7,6 +7,8 @@ from sklearn.utils import check_array
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.utils.validation import check_X_y, check_is_fitted
+from sklearn.model_selection import GridSearchCV
+from sklearn import metrics
 
 
 class LinearRegressor(BaseEstimator, RegressorMixin):
@@ -107,9 +109,6 @@ class BostonFeaturesTransformer(BaseEstimator, TransformerMixin):
 
         # TODO: Your custom initialization, if needed
         # Add any hyperparameters you need and save them as above
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
 
     def fit(self, X, y=None):
         return self
@@ -128,11 +127,7 @@ class BostonFeaturesTransformer(BaseEstimator, TransformerMixin):
         #  (this class is "Boston-specific"). For example X[:,1] is the second
         #  feature ('ZN').
 
-        X_transformed = None
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
-
+        X_transformed = PolynomialFeatures(self.degree).fit_transform(X)
         return X_transformed
 
 
@@ -209,9 +204,9 @@ def cv_best_hyperparams(
     #    and their names. The parameters dict you return should use the same
     #    names as keys.
     #  - You can use MSE or R^2 as a score.
+    parameters = {'linearregressor__reg_lambda': lambda_range, 'bostonfeaturestransformer__degree': degree_range}
 
-    # ====== YOUR CODE: ======
-    raise NotImplementedError()
-    # ========================
-
-    return best_params
+    scorer = metrics.make_scorer(mse_score, greater_is_better=False)
+    clf = GridSearchCV(model, parameters, cv=k_folds, scoring=scorer)
+    clf.fit(X, y)
+    return clf.best_params_
